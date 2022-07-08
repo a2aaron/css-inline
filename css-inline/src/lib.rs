@@ -38,11 +38,12 @@ mod parser;
 pub use error::InlineError;
 use indexmap::IndexMap;
 use smallvec::{smallvec, SmallVec};
-use std::{
-    borrow::Cow,
-    io::{ErrorKind, Write},
-};
+use std::{borrow::Cow, io::Write};
 
+#[cfg(feature = "remote_stylesheets")]
+use std::{fs, io::ErrorKind};
+
+#[cfg(feature = "remote_stylesheets")]
 pub use url::{ParseError, Url};
 
 /// Replace double quotes in property values.
@@ -67,8 +68,10 @@ pub struct InlineOptions<'a> {
     pub inline_style_tags: bool,
     /// Remove "style" tags after inlining.
     pub remove_style_tags: bool,
+    #[cfg(feature = "remote_stylesheets")]
     /// Used for loading external stylesheets via relative URLs.
     pub base_url: Option<Url>,
+    #[cfg(feature = "remote_stylesheets")]
     /// Whether remote stylesheets should be loaded or not.
     pub load_remote_stylesheets: bool,
     // The point of using `Cow` here is Python bindings, where it is problematic to pass a reference
@@ -86,7 +89,9 @@ impl<'a> InlineOptions<'a> {
         InlineOptions {
             inline_style_tags: true,
             remove_style_tags: true,
+            #[cfg(feature = "remote_stylesheets")]
             base_url: None,
+            #[cfg(feature = "remote_stylesheets")]
             load_remote_stylesheets: true,
             extra_css: None,
         }
@@ -108,6 +113,7 @@ impl<'a> InlineOptions<'a> {
 
     /// Set base URL that will be used for loading external stylesheets via relative URLs.
     #[must_use]
+    #[cfg(feature = "remote_stylesheets")]
     pub fn base_url(mut self, base_url: Option<Url>) -> Self {
         self.base_url = base_url;
         self
@@ -115,6 +121,7 @@ impl<'a> InlineOptions<'a> {
 
     /// Override whether remote stylesheets should be loaded.
     #[must_use]
+    #[cfg(feature = "remote_stylesheets")]
     pub fn load_remote_stylesheets(mut self, load_remote_stylesheets: bool) -> Self {
         self.load_remote_stylesheets = load_remote_stylesheets;
         self
@@ -140,7 +147,9 @@ impl Default for InlineOptions<'_> {
         InlineOptions {
             inline_style_tags: true,
             remove_style_tags: false,
+            #[cfg(feature = "remote_stylesheets")]
             base_url: None,
+            #[cfg(feature = "remote_stylesheets")]
             load_remote_stylesheets: true,
             extra_css: None,
         }
@@ -270,7 +279,7 @@ impl<'a> CSSInliner<'a> {
                 style_tag.as_node().detach();
             }
         }
-
+        #[cfg(feature = "remote_stylesheets")]
         if self.options.load_remote_stylesheets {
             let mut links = document
                 .select("link[rel~=stylesheet]")
@@ -320,6 +329,7 @@ impl<'a> CSSInliner<'a> {
         Ok(())
     }
 
+    #[cfg(feature = "remote_stylesheets")]
     fn get_full_url<'u>(&self, href: &'u str) -> Cow<'u, str> {
         // Valid absolute URL
         if Url::parse(href).is_ok() {
@@ -340,6 +350,7 @@ impl<'a> CSSInliner<'a> {
     }
 }
 
+#[cfg(feature = "remote_stylesheets")]
 fn load_external(location: &str) -> Result<String> {
     if location.starts_with("https") | location.starts_with("http") {
         #[cfg(feature = "http")]

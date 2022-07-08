@@ -54,12 +54,15 @@ OPTIONS:
 struct Args {
     inline_style_tags: bool,
     remove_style_tags: bool,
+    #[cfg(feature = "remote_stylesheets")]
     base_url: Option<String>,
     extra_css: Option<String>,
+    #[cfg(feature = "remote_stylesheets")]
     load_remote_stylesheets: bool,
     files: Vec<String>,
 }
 
+#[cfg(feature = "remote_stylesheets")]
 fn parse_url(url: Option<String>) -> Result<Option<url::Url>, url::ParseError> {
     Ok(if let Some(url) = url {
         Some(url::Url::parse(url.as_str())?)
@@ -80,15 +83,19 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .opt_value_from_str("--inline-style-tags")?
                 .unwrap_or(true),
             remove_style_tags: args.contains("--remove-style-tags"),
+            #[cfg(feature = "remote_stylesheets")]
             base_url: args.opt_value_from_str("--base-url")?,
             extra_css: args.opt_value_from_str("--extra-css")?,
+            #[cfg(feature = "remote_stylesheets")]
             load_remote_stylesheets: args.contains("--load-remote-stylesheets"),
             files: args.free()?,
         };
         let options = InlineOptions {
             inline_style_tags: args.inline_style_tags,
             remove_style_tags: args.remove_style_tags,
+            #[cfg(feature = "remote_stylesheets")]
             base_url: parse_url(args.base_url)?,
+            #[cfg(feature = "remote_stylesheets")]
             load_remote_stylesheets: args.load_remote_stylesheets,
             extra_css: args.extra_css.as_deref().map(Cow::Borrowed),
         };
