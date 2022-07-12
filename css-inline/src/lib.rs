@@ -25,9 +25,6 @@
     rust_2018_compatibility
 )]
 
-#[cfg(feature = "http")]
-use attohttpc::{Method, RequestBuilder};
-
 use kuchiki::{
     parse_html, traits::TendrilSink, ElementData, Node, NodeDataRef, NodeRef, Specificity,
 };
@@ -39,9 +36,6 @@ pub use error::InlineError;
 use indexmap::IndexMap;
 use smallvec::{smallvec, SmallVec};
 use std::{borrow::Cow, io::Write};
-
-#[cfg(feature = "remote_stylesheets")]
-use std::{fs, io::ErrorKind};
 
 #[cfg(feature = "remote_stylesheets")]
 pub use url::{ParseError, Url};
@@ -332,7 +326,7 @@ impl<'a> CSSInliner<'a> {
     #[cfg(feature = "remote_stylesheets")]
     fn get_full_url<'u>(&self, href: &'u str) -> Cow<'u, str> {
         // Valid absolute URL
-        if Url::parse(href).is_ok() {
+        if url::Url::parse(href).is_ok() {
             return Cow::Borrowed(href);
         };
         if let Some(base_url) = &self.options.base_url {
@@ -355,7 +349,7 @@ fn load_external(location: &str) -> Result<String> {
     if location.starts_with("https") | location.starts_with("http") {
         #[cfg(feature = "http")]
         {
-            let request = RequestBuilder::try_new(Method::GET, location)?;
+            let request = attohttpc::RequestBuilder::try_new(attohttpc::Method::GET, location)?;
             let response = request.send()?;
             Ok(response.text()?)
         }
@@ -363,7 +357,7 @@ fn load_external(location: &str) -> Result<String> {
         #[cfg(not(feature = "http"))]
         {
             Err(InlineError::IO(std::io::Error::new(
-                ErrorKind::Unsupported,
+                std::io::ErrorKind::Unsupported,
                 "Loading external URLs requires the `http` feature",
             )))
         }
@@ -371,7 +365,7 @@ fn load_external(location: &str) -> Result<String> {
         #[cfg(feature = "file")]
         {
             std::fs::read_to_string(location).map_err(|error| match error.kind() {
-                ErrorKind::NotFound => InlineError::MissingStyleSheet {
+                std::io::ErrorKind::NotFound => InlineError::MissingStyleSheet {
                     path: location.to_string(),
                 },
                 _ => InlineError::IO(error),
@@ -380,7 +374,7 @@ fn load_external(location: &str) -> Result<String> {
         #[cfg(not(feature = "file"))]
         {
             Err(InlineError::IO(std::io::Error::new(
-                ErrorKind::Unsupported,
+                std::io::ErrorKind::Unsupported,
                 "Loading local files requires the `file` feature",
             )))
         }
